@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   motion,
   AnimatePresence,
@@ -128,6 +128,21 @@ export default function PopularRoutes() {
   const containerRef = useRef(null);
   const phoneNumber = "919876543210";
   const [selectedPackage, setSelectedPackage] = useState(null);
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window !== "undefined") {
+      return window.innerWidth < 1024;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   /* ──────────────────────────────────────────────────────────
      SCROLL ENGINE: LEFT-TO-RIGHT PARALLAX DRIFT
@@ -192,7 +207,7 @@ Please share package pricing and cab availability.`;
 
         {/* ── SECTION HEADER: LEFT-TO-RIGHT SWEEP ENTRANCE ── */}
         <motion.div
-          initial={{ opacity: 0, x: -80 }}
+          initial={{ opacity: 0, x: isMobile ? -50 : -80 }}
           whileInView={{ opacity: 1, x: 0 }}
           viewport={{ once: false, amount: 0.2 }}
           transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
@@ -230,16 +245,14 @@ Please share package pricing and cab availability.`;
 
         {/* ── 4 TOUR CARDS: LEFT-TO-RIGHT SCROLL CONVOY ARRIVAL ── */}
         <motion.div
-          style={{ x: gridScrollX }}
+          style={isMobile ? {} : { x: gridScrollX }}
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5"
         >
           {packages.map((pkg, index) => {
             // Progressive Left-to-Right offset:
-            // Card 1 arrives from x: -160
-            // Card 2 arrives from x: -220
-            // Card 3 arrives from x: -280
-            // Card 4 arrives from x: -340
-            const leftOffset = -(160 + index * 60);
+            // On desktop: -160px, -220px, -280px, -340px staggered convoy
+            // On mobile: -80px clean Left-to-Right arrival, straight rotation (0deg), no corner drifting!
+            const leftOffset = isMobile ? -80 : -(160 + index * 60);
 
             return (
               <motion.div
@@ -248,8 +261,8 @@ Please share package pricing and cab availability.`;
                 initial={{
                   opacity: 0,
                   x: leftOffset,
-                  rotate: -(2 + index),
-                  scale: 0.92,
+                  rotate: isMobile ? 0 : -(2 + index),
+                  scale: isMobile ? 0.96 : 0.92,
                 }}
                 whileInView={{
                   opacity: 1,
@@ -257,13 +270,17 @@ Please share package pricing and cab availability.`;
                   rotate: 0,
                   scale: 1,
                 }}
-                viewport={{ once: false, amount: 0.15 }}
+                viewport={{
+                  once: false,
+                  amount: isMobile ? 0.02 : 0.15,
+                  margin: isMobile ? "80px 0px 0px 0px" : undefined,
+                }}
                 transition={{
                   type: "spring",
-                  stiffness: 170,
-                  damping: 19,
+                  stiffness: isMobile ? 180 : 170,
+                  damping: isMobile ? 20 : 19,
                   mass: 0.55,
-                  delay: index * 0.1,
+                  delay: isMobile ? 0 : index * 0.1,
                 }}
                 whileHover={{
                   y: -9,

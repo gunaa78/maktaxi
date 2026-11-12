@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   motion,
   AnimatePresence,
@@ -86,7 +86,7 @@ const trips = [
 /* ──────────────────────────────────────────────────────────
    INDIVIDUAL 3D PERSPECTIVE CARD COMPONENT (WHITE THEME)
 ────────────────────────────────────────────────────────── */
-function Trip3DCard({ trip, index, onSelect, onWhatsApp }) {
+function Trip3DCard({ trip, index, isMobile, onSelect, onWhatsApp }) {
   const cardRef = useRef(null);
   const Icon = trip.icon;
 
@@ -116,60 +116,75 @@ function Trip3DCard({ trip, index, onSelect, onWhatsApp }) {
     mouseY.set(0);
   };
 
-  // Progressive Right-to-Left Entrance offset:
-  // Card 1: x: 180px
-  // Card 2: x: 260px
-  // Card 3: x: 340px
-  const rightOffset = 180 + index * 80;
+  // Right-to-Left Entrance distance:
+  // On mobile: 90px clean, prominent Right-to-Left entrance for each card as user scrolls to it
+  // On desktop: 160px, 230px, 300px staggered Right-to-Left convoy
+  const rightOffset = isMobile ? 90 : 160 + index * 70;
+
+  // Mobile-optimized viewport trigger: triggers immediately (80px ahead) so Card 3 never comes late!
+  const cardViewport = {
+    once: false,
+    amount: isMobile ? 0.02 : 0.15,
+    margin: isMobile ? "80px 0px 0px 0px" : undefined,
+  };
+
+  const innerViewport = {
+    once: false,
+    amount: isMobile ? 0.02 : 0.2,
+  };
 
   return (
     <motion.div
       initial={{
         opacity: 0,
         x: rightOffset,
-        rotate: 2 + index * 1.5,
-        scale: 0.92,
+        scale: 0.95,
       }}
       whileInView={{
         opacity: 1,
         x: 0,
-        rotate: 0,
         scale: 1,
       }}
-      viewport={{ once: false, amount: 0.15 }}
+      viewport={cardViewport}
       transition={{
         type: "spring",
-        stiffness: 160,
-        damping: 19,
-        mass: 0.6,
-        delay: index * 0.12,
+        stiffness: isMobile ? 180 : 160,
+        damping: isMobile ? 20 : 19,
+        mass: 0.5,
+        delay: isMobile ? 0 : index * 0.12,
       }}
-      className="relative [perspective:1400px] h-full"
+      className={`relative h-full w-full ${isMobile ? "" : "[perspective:1400px]"}`}
     >
       <motion.div
         ref={cardRef}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        style={{
-          rotateX,
-          rotateY,
-          transformStyle: "preserve-3d",
-        }}
-        whileHover={{ scale: 1.025 }}
+        style={
+          isMobile
+            ? {}
+            : {
+                rotateX,
+                rotateY,
+                transformStyle: "preserve-3d",
+              }
+        }
+        whileHover={isMobile ? undefined : { scale: 1.025 }}
         className="group relative h-full rounded-[28px] bg-white border border-gray-200/90 hover:border-yellow-400 shadow-[0_15px_40px_rgba(0,0,0,0.06)] hover:shadow-[0_25px_60px_-10px_rgba(250,204,21,0.32)] transition-all duration-300 flex flex-col justify-between overflow-hidden cursor-pointer"
         onClick={() => onSelect(trip)}
       >
-        {/* ── 3D SPECULAR DYNAMIC GLARE LAYER ── */}
-        <motion.div
-          style={{
-            background: `radial-gradient(circle 280px at ${glareX} ${glareY}, rgba(250,204,21,0.15), transparent 70%)`,
-            transform: "translateZ(10px)",
-          }}
-          className="pointer-events-none absolute inset-0 z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-        />
+        {/* ── 3D SPECULAR DYNAMIC GLARE LAYER (DESKTOP ONLY) ── */}
+        {!isMobile && (
+          <motion.div
+            style={{
+              background: `radial-gradient(circle 280px at ${glareX} ${glareY}, rgba(250,204,21,0.15), transparent 70%)`,
+              transform: "translateZ(10px)",
+            }}
+            className="pointer-events-none absolute inset-0 z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+          />
+        )}
 
         {/* ── CARD HEADER: 3D IMAGE WITH DEPTH ── */}
-        <div className="relative h-56 sm:h-60 overflow-hidden bg-gray-100 [transform-style:preserve-3d]">
+        <div className={`relative h-56 sm:h-60 overflow-hidden bg-gray-100 ${isMobile ? "" : "[transform-style:preserve-3d]"}`}>
           <img
             src={trip.image}
             alt={trip.title}
@@ -183,9 +198,13 @@ function Trip3DCard({ trip, index, onSelect, onWhatsApp }) {
           {/* Sweeping Metallic Light Reflection */}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 -skew-x-12" />
 
-          {/* ── 3D LAYER 1: TOP BADGES (translateZ 45px) ── */}
-          <div
-            style={{ transform: "translateZ(45px)" }}
+          {/* ── TOP BADGES (RIGHT-TO-LEFT) ── */}
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={innerViewport}
+            transition={{ duration: 0.4, delay: 0.04 }}
+            style={isMobile ? {} : { transform: "translateZ(45px)" }}
             className="absolute top-3.5 inset-x-4 flex items-center justify-between z-20 pointer-events-none"
           >
             <div className="flex items-center gap-1.5">
@@ -204,11 +223,15 @@ function Trip3DCard({ trip, index, onSelect, onWhatsApp }) {
             <span className="bg-black/75 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-1 rounded-full border border-white/20 shadow-sm">
               {trip.speedTag}
             </span>
-          </div>
+          </motion.div>
 
-          {/* ── 3D LAYER 2: POP-OUT ICON & TITLE (translateZ 60px) ── */}
-          <div
-            style={{ transform: "translateZ(60px)" }}
+          {/* ── POP-OUT ICON & TITLE (RIGHT-TO-LEFT) ── */}
+          <motion.div
+            initial={{ opacity: 0, x: 45 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={innerViewport}
+            transition={{ duration: 0.45, delay: 0.08 }}
+            style={isMobile ? {} : { transform: "translateZ(60px)" }}
             className="absolute bottom-4 inset-x-5 flex items-end justify-between z-20 text-white pointer-events-none"
           >
             <div className="flex items-center gap-3">
@@ -227,21 +250,33 @@ function Trip3DCard({ trip, index, onSelect, onWhatsApp }) {
                 </span>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
 
-        {/* ── CARD BODY: 3D DEPTH LAYER (translateZ 35px) ── */}
+        {/* ── CARD BODY ── */}
         <div
-          style={{ transform: "translateZ(35px)" }}
+          style={isMobile ? {} : { transform: "translateZ(35px)" }}
           className="p-5 sm:p-6 flex-1 flex flex-col justify-between bg-white"
         >
           <div>
-            <p className="text-gray-600 text-xs sm:text-sm leading-relaxed mb-4 font-normal">
+            <motion.p
+              initial={{ opacity: 0, x: 35 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={innerViewport}
+              transition={{ duration: 0.4, delay: 0.1 }}
+              className="text-gray-600 text-xs sm:text-sm leading-relaxed mb-4 font-normal"
+            >
               {trip.desc}
-            </p>
+            </motion.p>
 
-            {/* FEATURES CHECKLIST */}
-            <div className="space-y-2 mb-5 pt-3 border-t border-gray-100">
+            {/* FEATURES CHECKLIST (RIGHT-TO-LEFT) */}
+            <motion.div
+              initial={{ opacity: 0, x: 40 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={innerViewport}
+              transition={{ duration: 0.4, delay: 0.14 }}
+              className="space-y-2 mb-5 pt-3 border-t border-gray-100"
+            >
               {trip.features.slice(0, 2).map((feat) => (
                 <div
                   key={feat}
@@ -251,12 +286,16 @@ function Trip3DCard({ trip, index, onSelect, onWhatsApp }) {
                   <span>{feat}</span>
                 </div>
               ))}
-            </div>
+            </motion.div>
           </div>
 
-          {/* ── 3D ACTION BUTTON ROW (translateZ 50px) ── */}
-          <div
-            style={{ transform: "translateZ(50px)" }}
+          {/* ── ACTION BUTTON ROW (RIGHT-TO-LEFT) ── */}
+          <motion.div
+            initial={{ opacity: 0, x: 35 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={innerViewport}
+            transition={{ duration: 0.45, delay: 0.18 }}
+            style={isMobile ? {} : { transform: "translateZ(50px)" }}
             className="pt-3 border-t border-gray-100 flex items-center gap-2"
           >
             <motion.button
@@ -285,7 +324,7 @@ function Trip3DCard({ trip, index, onSelect, onWhatsApp }) {
             >
               <MessageCircle size={16} />
             </motion.button>
-          </div>
+          </motion.div>
         </div>
 
       </motion.div>
@@ -299,6 +338,22 @@ function Trip3DCard({ trip, index, onSelect, onWhatsApp }) {
 export default function TripTypes() {
   const containerRef = useRef(null);
   const [selectedTrip, setSelectedTrip] = useState(null);
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window !== "undefined") {
+      return window.innerWidth < 1024;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const phoneNumber = "919876543210";
 
   /* ──────────────────────────────────────────────────────────
@@ -315,7 +370,7 @@ export default function TripTypes() {
     mass: 0.45,
   });
 
-  // Physical drift from right to left as user scrolls down the page
+  // Physical drift from right to left as user scrolls down the page (active on desktop)
   const gridScrollX = useTransform(smoothProgress, [0, 1], [60, -60]);
 
   const handleWhatsApp = (trip) => {
@@ -346,15 +401,15 @@ export default function TripTypes() {
 
       <div className="relative max-w-7xl mx-auto px-5 sm:px-6 z-10">
 
-        {/* ── SECTION HEADER: RIGHT-TO-LEFT SWEEP ENTRANCE ── */}
-        <motion.div
-          initial={{ opacity: 0, x: 90 }}
-          whileInView={{ opacity: 1, x: 0 }}
-          viewport={{ once: false, amount: 0.2 }}
-          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-          className="mb-12 md:mb-16 text-center"
-        >
-          <div className="inline-flex items-center gap-2 mb-2.5">
+        {/* ── SECTION HEADER: RIGHT-TO-LEFT ENTRANCE ── */}
+        <div className="mb-12 md:mb-16 text-center">
+          <motion.div
+            initial={{ opacity: 0, x: isMobile ? 40 : 60 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: false, amount: 0.2 }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            className="inline-flex items-center gap-2 mb-2.5"
+          >
             <span
               className="w-6 h-[2.5px] rounded-full"
               style={{ backgroundColor: MAK_YELLOW }}
@@ -369,23 +424,35 @@ export default function TripTypes() {
               className="w-6 h-[2.5px] rounded-full"
               style={{ backgroundColor: MAK_YELLOW }}
             />
-          </div>
+          </motion.div>
 
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-950 tracking-[-0.03em] font-outfit">
+          <motion.h2
+            initial={{ opacity: 0, x: isMobile ? 65 : 90 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: false, amount: 0.2 }}
+            transition={{ duration: 0.55, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+            className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-950 tracking-[-0.03em] font-outfit"
+          >
             Curated Travel{" "}
             <span style={{ color: "#ca8a04" }}>
               Services.
             </span>
-          </h2>
+          </motion.h2>
 
-          <p className="text-gray-600 mt-3 max-w-xl mx-auto text-xs sm:text-sm md:text-base font-normal leading-relaxed">
+          <motion.p
+            initial={{ opacity: 0, x: isMobile ? 50 : 75 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: false, amount: 0.2 }}
+            transition={{ duration: 0.5, delay: 0.14, ease: [0.16, 1, 0.3, 1] }}
+            className="text-gray-600 mt-3 max-w-xl mx-auto text-xs sm:text-sm md:text-base font-normal leading-relaxed"
+          >
             Every journey deserves maximum comfort. Choose the 3D interactive service card that matches your schedule.
-          </p>
-        </motion.div>
+          </motion.p>
+        </div>
 
-        {/* ── 3D INTERACTIVE CARD GRID: CONTINUOUS RIGHT-TO-LEFT PARALLAX DRIFT ── */}
+        {/* ── 3D INTERACTIVE CARD GRID ── */}
         <motion.div
-          style={{ x: gridScrollX }}
+          style={isMobile ? {} : { x: gridScrollX }}
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7 lg:gap-8"
         >
           {trips.map((trip, index) => (
@@ -393,6 +460,7 @@ export default function TripTypes() {
               key={trip.id}
               trip={trip}
               index={index}
+              isMobile={isMobile}
               onSelect={(t) => setSelectedTrip(t)}
               onWhatsApp={(t) => handleWhatsApp(t)}
             />
@@ -400,28 +468,40 @@ export default function TripTypes() {
         </motion.div>
 
         {/* ── BOTTOM LUXURY TRUST ROW: RIGHT-TO-LEFT ENTRANCE ── */}
-        <motion.div
-          initial={{ opacity: 0, x: 60 }}
-          whileInView={{ opacity: 1, x: 0 }}
-          viewport={{ once: false, amount: 0.2 }}
-          transition={{ duration: 0.65, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
-          className="mt-14 flex flex-wrap items-center justify-center gap-6 text-[11px] font-semibold text-gray-500"
-        >
-          <span className="flex items-center gap-1.5 text-amber-600">
+        <div className="mt-14 flex flex-wrap items-center justify-center gap-6 text-[11px] font-semibold text-gray-500">
+          <motion.span
+            initial={{ opacity: 0, x: isMobile ? 35 : 50 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: false, amount: 0.2 }}
+            transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+            className="flex items-center gap-1.5 text-amber-600"
+          >
             <ShieldCheck size={14} />
             Zero Surge Guarantee
-          </span>
+          </motion.span>
           <span className="text-gray-300">•</span>
-          <span className="flex items-center gap-1.5 text-emerald-600">
+          <motion.span
+            initial={{ opacity: 0, x: isMobile ? 45 : 65 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: false, amount: 0.2 }}
+            transition={{ duration: 0.45, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+            className="flex items-center gap-1.5 text-emerald-600"
+          >
             <Compass size={14} />
             All-India Permit Cabs
-          </span>
+          </motion.span>
           <span className="text-gray-300">•</span>
-          <span className="flex items-center gap-1.5 text-gray-700">
+          <motion.span
+            initial={{ opacity: 0, x: isMobile ? 55 : 80 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: false, amount: 0.2 }}
+            transition={{ duration: 0.45, delay: 0.16, ease: [0.16, 1, 0.3, 1] }}
+            className="flex items-center gap-1.5 text-gray-700"
+          >
             <Clock size={14} style={{ color: "#ca8a04" }} />
             24/7 Doorstep Dispatch
-          </span>
-        </motion.div>
+          </motion.span>
+        </div>
 
       </div>
 
